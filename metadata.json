@@ -1,0 +1,6 @@
+{
+  "name": "詰将棋マスターA",
+  "description": "終盤練習ができるアプリです。あなたの指し手に対して自動で応手します。",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
