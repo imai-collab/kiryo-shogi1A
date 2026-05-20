@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as ShogiModule from 'shogi.js';
 import confetti from 'canvas-confetti';
-import { Trophy, RotateCcw, ChevronLeft, ChevronRight, Info, AlertCircle, Upload, Plus, Loader2, Edit2, Check, ArrowUp, ArrowDown, Trash2, ListOrdered, Copy, ClipboardCopy, Download } from 'lucide-react';
+import { Trophy, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, AlertCircle, Upload, Plus, Loader2, Edit2, Check, ArrowUp, ArrowDown, Trash2, ListOrdered, Copy, ClipboardCopy, Download, Settings, X, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from '@google/genai';
 import { solveTsumeShogi, Move as SolverMove } from './lib/solver';
@@ -599,6 +599,7 @@ export default function App() {
   const [sfenInputDialog, setSfenInputDialog] = useState(false);
   const [sfenInput, setSfenInput] = useState('');
   const [editTool, setEditTool] = useState<{ kind: string, color: Color } | 'eraser' | null>(null);
+  const [isToolbarOpen, setIsToolbarOpen] = useState(false);
 
   useEffect(() => {
     const fetchProblems = async () => {
@@ -971,14 +972,21 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
     
     try {
       const newShogi = new Shogi();
+      
+      // 常に先手番からスタートするようにSFENを書き換える
+      let initialSfen = currentProblem.initialSfen;
+      if (initialSfen.includes(' w ')) {
+        initialSfen = initialSfen.replace(' w ', ' b ');
+      }
+      
       try {
         if (newShogi.initializeFromSFENString) {
-          newShogi.initializeFromSFENString(currentProblem.initialSfen);
+          newShogi.initializeFromSFENString(initialSfen);
         } else if (newShogi.initializeFromSFEN) {
-          newShogi.initializeFromSFEN(currentProblem.initialSfen);
+          newShogi.initializeFromSFEN(initialSfen);
         }
       } catch (sfenError) {
-        console.error("Invalid SFEN:", currentProblem.initialSfen);
+        console.error("Invalid SFEN:", initialSfen);
         // Initialize with empty board if SFEN is invalid
         if (newShogi.initializeFromSFENString) {
           newShogi.initializeFromSFENString("9/9/9/9/9/9/9/9/9 b - 1");
@@ -1006,7 +1014,7 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
 
   const handleChangeGoteMove = useCallback(() => {
     if (moveHistory.length === 0) return;
-    const isSentesTurn = moveHistory.length % 2 === 0;
+    const isSentesTurn = moveHistory.length % 2 !== 0;
     
     if (!isSentesTurn) return;
 
@@ -1363,21 +1371,20 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
       : Object.entries(hand).filter(([_, count]) => (count as number) > 0);
 
     return (
-      <div className="flex flex-row flex-nowrap gap-1 sm:gap-2 items-center justify-center">
+      <div className="flex flex-row flex-wrap gap-1 sm:gap-2 items-center justify-center">
         {!isEditMode && pieces.length === 0 && <span className="text-amber-800/40 text-[10px] sm:text-sm italic py-2">なし</span>}
         {pieces.map(([kind, count]) => (
           <div key={kind} className="flex flex-col items-center gap-1">
             <div
               onClick={() => !isEditMode && handleHandClick(kind as string, color)}
               className={`
-                relative w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center rounded
-                ${!isEditMode && color === Color.Black ? 'cursor-pointer' : ''}
-                ${color === Color.Black ? 'border border-amber-800/30 bg-white/80 hover:bg-amber-100 shadow-sm' : 'bg-transparent'}
+                relative flex items-center justify-center rounded
+                ${color === Color.Black ? 'w-[10vw] max-w-[46px] h-[10vw] max-h-[46px] cursor-pointer border border-amber-800/30 bg-white/80 hover:bg-amber-100 shadow-sm' : 'w-8 h-8 sm:w-10 sm:h-10 bg-transparent'}
                 ${selectedHandPiece?.piece === kind && selectedHandPiece?.color === color ? '!bg-amber-400/50' : ''}
                 transition-all duration-200
               `}
             >
-              <span className={`font-bold ${color === Color.White ? 'text-lg sm:text-2xl rotate-180 text-amber-900' : 'text-xl sm:text-2xl md:text-3xl text-amber-950'} ${isEditMode && count === 0 ? 'opacity-30' : ''}`}>
+              <span className={`font-bold ${color === Color.White ? 'text-lg sm:text-xl rotate-180 text-amber-900' : 'text-xl sm:text-2xl md:text-3xl text-amber-950'} ${isEditMode && count === 0 ? 'opacity-30' : ''}`}>
                 {PIECE_NAMES[kind as string] || kind}
               </span>
               {(count as number) > 1 && (
@@ -1413,7 +1420,7 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf6e3] text-amber-950 font-sans py-1 sm:py-4 px-0 sm:px-8 flex flex-col items-center overflow-x-hidden">
+    <div className="h-[100dvh] bg-[#fdf6e3] text-amber-950 font-sans flex flex-col items-center overflow-hidden relative">
       {/* Custom Modals */}
       {confirmDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -1455,180 +1462,65 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
         </div>
       )}
 
-      <header className="w-full max-w-4xl px-2 sm:px-0 flex flex-col sm:flex-row justify-between items-center mb-2 sm:mb-4 gap-2">
-        <div className="w-full sm:w-auto overflow-hidden">
-          {isEditingTitle ? (
-            <div className="flex items-center gap-2 w-full">
-              <input
-                type="text"
-                value={tempTitle}
-                onChange={(e) => setTempTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleTitleSave();
-                  if (e.key === 'Escape') setIsEditingTitle(false);
-                }}
-                className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter text-amber-900 bg-white border-2 border-amber-300 rounded-lg px-2 py-1 outline-none focus:border-amber-500 w-full max-w-full sm:max-w-[400px]"
-                autoFocus
-                onBlur={handleTitleSave}
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col min-w-0 flex-1">
-              <h1 
-                className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter text-amber-900 flex items-center gap-1 sm:gap-2 cursor-pointer hover:opacity-80 transition-opacity w-full"
-                onClick={() => {
-                  setTempTitle(appTitle);
-                  setIsEditingTitle(true);
-                }}
-                title="クリックしてタイトルを編集"
-              >
-                <span className="truncate whitespace-nowrap overflow-hidden leading-tight">{appTitle}</span>
-                <Trophy className="text-amber-600 w-5 h-5 flex-shrink-0" />
-                <Edit2 className="w-4 h-4 text-amber-900/40 ml-1 flex-shrink-0" />
-              </h1>
-              {isSaving && (
-                <div className="flex items-center mt-1">
-                  <motion.span 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="inline-flex items-center gap-1 text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-100"
-                  >
-                    <Loader2 size={10} className="animate-spin" />
-                    自動保存中...
-                  </motion.span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-          {!isEditMode && (
+      <div className="w-full bg-amber-200 py-2 px-4 flex justify-center items-center border-b-2 border-amber-900/20 shrink-0 shadow-sm">
+        <span className="text-amber-950 font-black text-base sm:text-lg tracking-wide">©kiryoアプリ　詰将棋</span>
+      </div>
+      <header className="w-full flex-none px-2 sm:px-4 py-2 flex items-center justify-between shadow-sm z-10 bg-white/50 backdrop-blur-sm border-b border-amber-900/10">
+        <button
+          onClick={() => setCurrentProblemIndex(prev => Math.max(0, prev - 10))}
+          disabled={currentProblemIndex === 0}
+          className="p-1 sm:p-2 rounded-full hover:bg-amber-200 disabled:opacity-30 transition-colors"
+          title="10問戻る"
+        >
+          <ChevronsLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+        </button>
+
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button
+            onClick={() => setCurrentProblemIndex(prev => Math.max(0, prev - 1))}
+            disabled={currentProblemIndex === 0}
+            className="p-1 sm:p-2 rounded-full hover:bg-amber-200 disabled:opacity-30 transition-colors"
+            title="前の問題"
+          >
+            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+          
+          <div className="flex justify-center items-center gap-2 sm:gap-4 mx-1 sm:mx-2">
             <h2 className="text-base sm:text-lg md:text-xl font-bold text-amber-900 whitespace-nowrap">
               {currentProblem.title}
             </h2>
-          )}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentProblemIndex(prev => Math.max(0, prev - 1))}
-              disabled={currentProblemIndex === 0}
-              className="p-1 sm:p-2 rounded-full hover:bg-amber-200 disabled:opacity-30 transition-colors"
-            >
-              <ChevronLeft />
-            </button>
-            <span className="font-bold px-3 py-1 bg-amber-200 rounded-full text-xs sm:text-sm whitespace-nowrap">
+            <span className="font-bold px-3 py-1 bg-amber-200 rounded-full text-xs sm:text-sm whitespace-nowrap text-amber-900">
               問題 {currentProblemIndex + 1} / {problems.length}
             </span>
-            <button
-              onClick={() => setCurrentProblemIndex(prev => Math.min(problems.length - 1, prev + 1))}
-              disabled={currentProblemIndex === problems.length - 1}
-              className="p-1 sm:p-2 rounded-full hover:bg-amber-200 disabled:opacity-30 transition-colors"
-            >
-              <ChevronRight />
-            </button>
           </div>
+
+          <button
+            onClick={() => setCurrentProblemIndex(prev => Math.min(problems.length - 1, prev + 1))}
+            disabled={currentProblemIndex === problems.length - 1}
+            className="p-1 sm:p-2 rounded-full hover:bg-amber-200 disabled:opacity-30 transition-colors"
+            title="次の問題"
+          >
+            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
         </div>
+
+        <button
+          onClick={() => setCurrentProblemIndex(prev => Math.min(problems.length - 1, prev + 10))}
+          disabled={currentProblemIndex === problems.length - 1}
+          className="p-1 sm:p-2 rounded-full hover:bg-amber-200 disabled:opacity-30 transition-colors"
+          title="10問進む"
+        >
+          <ChevronsRight className="w-5 h-5 sm:w-6 sm:h-6" />
+        </button>
       </header>
 
-      <main className="w-full max-w-5xl flex flex-col lg:flex-row gap-8 items-start justify-center">
-        {/* Info Column */}
-        <div className="w-full lg:w-1/3 px-2 sm:px-0 space-y-4 sm:space-y-6 order-2 lg:order-1">
-          <section className="bg-white/60 p-4 sm:p-6 rounded-xl border border-amber-200 shadow-sm flex flex-col gap-4">
-            {isEditMode ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-amber-700 block uppercase tracking-wider">問題タイトル</label>
-                  <input
-                    type="text"
-                    value={currentProblem.title}
-                    onChange={(e) => {
-                      const updatedProblems = [...problems];
-                      updatedProblems[currentProblemIndex] = {
-                        ...currentProblem,
-                        title: e.target.value,
-                      };
-                      setProblems(updatedProblems);
-                    }}
-                    className="w-full text-xl font-bold p-2 border border-amber-300 rounded-lg bg-white text-amber-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    placeholder="問題のタイトルを入力"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-amber-700 block uppercase tracking-wider">問題の説明 / 解説</label>
-                  <textarea
-                    value={currentProblem.description}
-                    onChange={(e) => {
-                      const updatedProblems = [...problems];
-                      updatedProblems[currentProblemIndex] = {
-                        ...currentProblem,
-                        description: e.target.value,
-                      };
-                      setProblems(updatedProblems);
-                    }}
-                    className="w-full p-3 border border-amber-300 rounded-xl bg-white text-amber-900 mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    rows={4}
-                    placeholder="問題の説明を入力してください"
-                  />
-                  <button 
-                    onClick={toggleEditMode}
-                    className="w-full bg-amber-600 text-white py-2 rounded-lg font-bold hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Check size={18} />
-                    編集内容を確定
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <p className="text-amber-800 leading-relaxed whitespace-pre-wrap border-b border-amber-900/10 pb-4">
-                  {currentProblem.description}
-                </p>
-                <div className="flex justify-end">
-                  <button 
-                    onClick={toggleEditMode}
-                    className="flex items-center gap-1 text-sm px-3 py-1.5 rounded transition-colors bg-amber-200 text-amber-800 hover:bg-amber-300 font-bold"
-                    title="盤面を編集する"
-                  >
-                    <Edit2 size={14} /> 盤面を修正
-                  </button>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap pt-2">
-                  <button onClick={() => setShowInfo(!showInfo)} className="text-amber-600 hover:text-amber-800 flex items-center gap-1 text-sm font-bold bg-amber-100 px-2 py-1 rounded" title="ヒント">
-                    <Info size={16} /> ヒント
-                  </button>
-                  <button onClick={moveProblemUp} disabled={currentProblemIndex === 0} className="p-1 text-amber-600 hover:bg-amber-200 rounded disabled:opacity-30" title="前に移動"><ArrowUp size={16} /></button>
-                  <button onClick={moveProblemDown} disabled={currentProblemIndex === problems.length - 1} className="p-1 text-amber-600 hover:bg-amber-200 rounded disabled:opacity-30" title="後ろに移動"><ArrowDown size={16} /></button>
-                  <button onClick={renumberProblems} className="p-1 text-amber-600 hover:bg-amber-200 rounded" title="問題番号を順番通りに振り直す"><ListOrdered size={16} /></button>
-                  <button onClick={duplicateProblem} className="p-1 text-amber-600 hover:bg-amber-200 rounded" title="この問題を複製"><Copy size={16} /></button>
-                  <button onClick={deleteProblem} className="p-1 text-red-500 hover:bg-red-100 rounded" title="この問題を削除"><Trash2 size={16} /></button>
-                </div>
-              </>
-            )}
-          </section>
-
-          <AnimatePresence>
-            {showInfo && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800"
-              >
-                <p><strong>ヒント:</strong> 相手の玉を逃げ場のない状態（詰み）にしてください。王手以外の手（必至など）を指すことも可能です。</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Board Area */}
-        <div className="w-full lg:w-2/3 flex flex-col gap-1 sm:gap-4 order-1 lg:order-2 items-center">
-          <div className="w-full flex flex-col justify-center items-center gap-1 sm:gap-4">
-            
-            {/* Gote Hand (Top) */}
-            <div className="w-full max-w-full sm:max-w-[500px] flex flex-row px-0 sm:px-2">
-              <div className="w-full bg-amber-900/5 p-1 sm:p-3 rounded-lg sm:rounded-xl border border-amber-900/10 min-h-[40px] flex flex-row items-center gap-2 sm:gap-4 flex-nowrap">
-                <h3 className="text-xs sm:text-sm font-bold text-amber-900/60 whitespace-nowrap ml-1 sm:ml-0 flex-shrink-0">後手</h3>
-                <div className="flex-1 flex flex-row justify-start flex-nowrap lg:justify-center">
+      <main className="flex-1 w-full min-h-0 flex flex-col items-center p-2 relative overflow-hidden">
+        <div className="w-full max-w-lg flex flex-col gap-1 sm:gap-2 items-center justify-start h-full pt-1 sm:pt-2 overflow-hidden">
+          {/* Gote Hand (Top) */}
+            <div className="w-full max-w-full sm:max-w-[480px] flex flex-row px-0 sm:px-2">
+              <div className="w-full bg-amber-900/5 p-1 sm:p-3 rounded-lg sm:rounded-xl border border-amber-900/10 min-h-[40px] flex flex-row items-center gap-2 sm:gap-4">
+                <h3 className="text-xs sm:text-sm font-bold text-amber-900/60 whitespace-nowrap ml-1 sm:ml-0">後手</h3>
+                <div className="flex-1 flex flex-row justify-start flex-wrap">
                   {renderHand(Color.White)}
                 </div>
               </div>
@@ -1636,13 +1528,13 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
 
             {/* Board */}
             <div className="flex flex-col items-center w-full">
-              <div className={`relative w-full sm:w-auto p-0 sm:p-6 sm:rounded-lg shadow-sm sm:shadow-2xl border-y-2 sm:border-4 flex-shrink-0 transition-colors ${isEditMode ? 'bg-amber-100 border-amber-500' : 'bg-amber-100 sm:bg-amber-200 border-amber-800/20 sm:border-amber-800/20'}`}>
+              <div className={`relative w-full max-w-[min(100vw-16px,50vh)] p-0 sm:p-2 sm:rounded-lg shadow-sm sm:shadow-2xl border-y-2 sm:border-4 flex-shrink-0 transition-colors ${isEditMode ? 'bg-amber-100 border-amber-500' : 'bg-amber-100 sm:bg-amber-200 border-amber-800/20 sm:border-amber-800/20'}`}>
                 {isEditMode && (
-                  <div className="absolute top-0 left-0 right-0 bg-amber-500 text-white text-xs font-bold text-center py-0.5 sm:py-1 sm:rounded-t-sm z-10">
+                  <div className="absolute top-0 left-0 right-0 bg-amber-500 text-white text-[10px] sm:text-xs font-bold text-center py-0.5 sm:py-1 sm:rounded-t-sm z-10">
                     盤面編集モード
                   </div>
                 )}
-                <div className={`grid grid-cols-9 w-full max-w-[600px] sm:w-[420px] bg-amber-50 border-2 border-amber-900 shadow-inner align-top ${isEditMode ? 'mt-4 sm:mt-4' : ''}`}>
+                <div className={`grid grid-cols-9 w-full bg-amber-50 border-2 border-amber-900 shadow-inner align-top ${isEditMode ? 'mt-4 sm:mt-4' : ''}`}>
                   {renderBoard()}
                 </div>
                 <AnimatePresence>
@@ -1665,10 +1557,10 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
             </div>
 
             {/* Sente Hand (Bottom) */}
-            <div className="w-full max-w-full sm:max-w-[500px] flex flex-row px-0 sm:px-2">
-              <div className="w-full bg-amber-900/5 p-1 sm:p-3 rounded-lg sm:rounded-xl border border-amber-900/10 min-h-[40px] flex flex-row items-center gap-2 sm:gap-4 flex-nowrap">
-                <h3 className="text-xs sm:text-sm font-bold text-amber-900/60 whitespace-nowrap ml-1 sm:ml-0 flex-shrink-0">先手</h3>
-                <div className="flex-1 flex flex-row justify-center flex-nowrap">
+            <div className="w-full max-w-full sm:max-w-[480px] flex flex-row px-0 sm:px-2">
+              <div className="w-full bg-amber-900/5 p-1 sm:p-3 rounded-lg sm:rounded-xl border border-amber-900/10 min-h-[40px] flex flex-row items-center gap-2 sm:gap-4">
+                <h3 className="text-xs sm:text-sm font-bold text-amber-900/60 whitespace-nowrap ml-1 sm:ml-0">先手</h3>
+                <div className="flex-1 flex flex-row justify-center flex-wrap">
                   {renderHand(Color.Black)}
                 </div>
               </div>
@@ -1676,7 +1568,7 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
             
             {/* Message Area moved below Sente Hand */}
             <div className={`
-              w-full max-w-full sm:max-w-[420px] p-2 sm:p-4 rounded-lg sm:rounded-xl text-center font-bold text-sm sm:text-lg transition-all duration-300 mx-2 sm:mx-0 shadow-sm
+              w-full max-w-full sm:max-w-[480px] p-2 sm:p-4 rounded-lg sm:rounded-xl text-center font-bold text-sm sm:text-lg transition-all duration-300 mx-2 sm:mx-0 shadow-sm
               ${isGameOver ? 'bg-green-100 text-green-800 scale-105' : 'bg-amber-100 border border-amber-200 text-amber-900'}
             `}>
               {message === 'CORRECT' ? (
@@ -1698,7 +1590,7 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
               )}
             </div>
 
-            <div className="flex flex-row w-full max-w-full px-2 sm:px-0 sm:max-w-[420px] gap-2 mt-1 sm:mt-0">
+            <div className="flex flex-row w-full max-w-full px-2 sm:px-0 sm:max-w-[480px] gap-2 mt-1 sm:mt-0">
               <button
                 onClick={resetGame}
                 className="flex-1 flex items-center justify-center gap-1 sm:gap-2 bg-amber-800 text-white py-1.5 sm:py-3 rounded-lg sm:rounded-xl font-bold text-xs sm:text-base hover:bg-amber-900 transition-colors shadow-sm active:scale-95"
@@ -1708,13 +1600,19 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
               </button>
               <button
                 onClick={handleChangeGoteMove}
-                disabled={moveHistory.length === 0 || moveHistory.length % 2 !== 0}
-                className={`flex-1 flex items-center justify-center bg-gray-600 text-white py-1.5 sm:py-3 rounded-lg sm:rounded-xl font-bold text-xs sm:text-base transition-colors shadow-sm active:scale-95 ${moveHistory.length === 0 || moveHistory.length % 2 !== 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
+                disabled={moveHistory.length === 0 || moveHistory.length % 2 === 0}
+                className={`flex-1 flex items-center justify-center bg-gray-600 text-white py-1.5 sm:py-3 rounded-lg sm:rounded-xl font-bold text-xs sm:text-base transition-colors shadow-sm active:scale-95 ${moveHistory.length === 0 || moveHistory.length % 2 === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'}`}
               >
                 後手の手を変える
               </button>
             </div>
-          </div>
+
+            {/* Comment Section below buttons */}
+            <div className="w-full max-w-[600px] px-2 sm:px-0 mt-1 text-center z-10 shrink-0">
+              <p className="text-sm sm:text-base text-amber-950 truncate font-bold bg-white/60 p-2 sm:p-3 rounded-xl border border-amber-900/10 shadow-sm" title={currentProblem.description || "解説はありません"}>
+                {currentProblem.description || "解説はありません"}
+              </p>
+            </div>
 
           {/* Edit Palette */}
           {isEditMode && (
@@ -1775,102 +1673,236 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
         </div>
       </main>
 
-      {/* Upload Section */}
-      <div className="w-full max-w-5xl mt-8 px-2 sm:px-0">
-        <div className="bg-white/60 p-4 rounded-xl border border-amber-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-amber-900 w-full sm:w-auto">
-            <div className="flex items-center gap-2">
-              <Upload size={20} />
-              <span className="font-bold text-sm">問題を追加・エクスポートする</span>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={copyAllData}
-                className="flex items-center gap-2 text-sm text-amber-700 hover:text-amber-900 bg-white px-3 py-1.5 rounded-md border border-amber-300 shadow-sm transition-colors"
-                title="現在の問題データをクリップボードにコピー"
-              >
-                <ClipboardCopy size={16} />
-                データをコピー
-              </button>
-
-              <input
-                type="file"
-                accept="application/json"
-                className="hidden"
-                ref={jsonFileInputRef}
-                onChange={handleJsonImport}
-              />
-              <button
-                onClick={() => jsonFileInputRef.current?.click()}
-                className="flex items-center gap-2 text-sm text-amber-700 hover:text-amber-900 bg-white px-3 py-1.5 rounded-md border border-amber-300 shadow-sm transition-colors"
-                title="JSONファイルから問題データをインポート"
-              >
-                <Download size={16} />
-                データをインポート
-              </button>
-
-              <button
-                onClick={() => {
-                  if (problems.length <= 1) {
-                    setAlertDialog('削除できる問題がありません。');
-                    return;
-                  }
-                  setConfirmDialog({
-                    message: '第1問以外のすべての問題を削除しますか？\n(この操作は取り消せません)',
-                    onConfirm: () => {
-                      const newProblems = [problems[0]];
-                      setProblems(newProblems);
-                      setCurrentProblemIndex(0);
-                      localStorage.setItem('tsumeShogiProblems', JSON.stringify(newProblems));
-                      setAlertDialog('第1問以外の問題をすべて削除しました。');
-                    }
-                  });
-                }}
-                className="flex items-center gap-2 text-sm text-red-700 hover:text-red-900 bg-red-50 px-3 py-1.5 rounded-md border border-red-200 shadow-sm transition-colors"
-                title="第1問以外のすべての問題を削除する"
-              >
-                <RotateCcw size={16} />
-                初期化
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-            <button
-              onClick={handleAddEmptyProblem}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-amber-100 text-amber-900 px-4 py-2 rounded-lg font-bold hover:bg-amber-200 transition-colors"
-            >
-              <Plus size={18} />
-              空の盤面を追加
-            </button>
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-amber-100 text-amber-900 px-4 py-2 rounded-lg font-bold hover:bg-amber-200 transition-colors disabled:opacity-50"
-            >
-              {isUploading ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <Upload size={18} />
-              )}
-              {isUploading ? '解析中...' : '画像/PDFから追加'}
-            </button>
-          </div>
-        </div>
-        {uploadError && (
-          <div className="mt-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-2">
-            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-            <span>{uploadError}</span>
-          </div>
-        )}
+      {/* Floating Toolbar Toggle */}
+      <div className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 flex items-end gap-2 sm:gap-3 z-20 pointer-events-none">
+        
+        <button
+          onClick={() => setIsToolbarOpen(true)}
+          className="w-12 h-12 sm:w-14 sm:h-14 bg-amber-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-amber-700 hover:scale-105 active:scale-95 transition-all flex-shrink-0 pointer-events-auto"
+          title="ツール・設定を開く"
+        >
+          <Menu size={24} className="sm:scale-110" />
+        </button>
       </div>
+
+      {/* Action Drawer */}
+      <AnimatePresence>
+        {isToolbarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={() => setIsToolbarOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+              className="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-[#fdf6e3] rounded-t-3xl shadow-2xl overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-[#fdf6e3]/90 backdrop-blur pb-2 pt-4 px-6 border-b border-amber-900/10 flex justify-between items-center z-10">
+                <h2 className="font-bold text-amber-900 text-lg">ツール・設定</h2>
+                <button
+                  onClick={() => setIsToolbarOpen(false)}
+                  className="p-2 bg-amber-100 rounded-full text-amber-900 hover:bg-amber-200"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-4 sm:p-6 space-y-6">
+                {/* Info Column Restored */}
+                <section className="bg-white/60 p-4 sm:p-6 rounded-xl border border-amber-200 shadow-sm flex flex-col gap-4">
+                  {isEditMode ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-amber-700 block uppercase tracking-wider">問題タイトル</label>
+                        <input
+                          type="text"
+                          value={currentProblem.title}
+                          onChange={(e) => {
+                            const updatedProblems = [...problems];
+                            updatedProblems[currentProblemIndex] = {
+                              ...currentProblem,
+                              title: e.target.value,
+                            };
+                            setProblems(updatedProblems);
+                          }}
+                          className="w-full text-xl font-bold p-2 border border-amber-300 rounded-lg bg-white text-amber-950 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          placeholder="問題のタイトルを入力"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-amber-700 block uppercase tracking-wider">問題の説明 / 解説</label>
+                        <textarea
+                          value={currentProblem.description}
+                          onChange={(e) => {
+                            const updatedProblems = [...problems];
+                            updatedProblems[currentProblemIndex] = {
+                              ...currentProblem,
+                              description: e.target.value,
+                            };
+                            setProblems(updatedProblems);
+                          }}
+                          className="w-full p-3 border border-amber-300 rounded-xl bg-white text-amber-900 mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          rows={4}
+                          placeholder="問題の説明を入力してください"
+                        />
+                        <button 
+                          onClick={toggleEditMode}
+                          className="w-full bg-amber-600 text-white py-2 rounded-lg font-bold hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Check size={18} />
+                          編集内容を確定
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-amber-800 leading-relaxed whitespace-pre-wrap border-b border-amber-900/10 pb-4">
+                        {currentProblem.description}
+                      </p>
+                      <div className="flex justify-end">
+                        <button 
+                          onClick={toggleEditMode}
+                          className="flex items-center gap-1 text-sm px-3 py-1.5 rounded transition-colors bg-amber-200 text-amber-800 hover:bg-amber-300 font-bold"
+                          title="盤面を編集する"
+                        >
+                          <Edit2 size={14} /> 盤面を修正
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap pt-2">
+                        <button onClick={() => setShowInfo(!showInfo)} className="text-amber-600 hover:text-amber-800 flex items-center gap-1 text-sm font-bold bg-amber-100 px-2 py-1 rounded" title="ヒント">
+                          <Info size={16} /> ヒント
+                        </button>
+                        <button onClick={moveProblemUp} disabled={currentProblemIndex === 0} className="p-1 text-amber-600 hover:bg-amber-200 rounded disabled:opacity-30" title="前に移動"><ArrowUp size={16} /></button>
+                        <button onClick={moveProblemDown} disabled={currentProblemIndex === problems.length - 1} className="p-1 text-amber-600 hover:bg-amber-200 rounded disabled:opacity-30" title="後ろに移動"><ArrowDown size={16} /></button>
+                        <button onClick={renumberProblems} className="p-1 text-amber-600 hover:bg-amber-200 rounded" title="問題番号を順番通りに振り直す"><ListOrdered size={16} /></button>
+                        <button onClick={duplicateProblem} className="p-1 text-amber-600 hover:bg-amber-200 rounded" title="この問題を複製"><Copy size={16} /></button>
+                        <button onClick={deleteProblem} className="p-1 text-red-500 hover:bg-red-100 rounded" title="この問題を削除"><Trash2 size={16} /></button>
+                      </div>
+                    </>
+                  )}
+                </section>
+
+                <AnimatePresence>
+                  {showInfo && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800"
+                    >
+                      <p><strong>ヒント:</strong> 相手の玉を逃げ場のない状態（詰み）にしてください。王手以外の手（必至など）を指すことも可能です。</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Upload Section */}
+                <div className="w-full">
+                  <div className="bg-white/60 p-4 rounded-xl border border-amber-200 shadow-sm flex flex-col items-center justify-between gap-4">
+                    <div className="flex flex-col items-start gap-4 text-amber-900 w-full">
+                      <div className="flex items-center gap-2">
+                        <Upload size={20} />
+                        <span className="font-bold text-sm">問題を追加・エクスポートする</span>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 w-full">
+                        <button
+                          onClick={copyAllData}
+                          className="flex items-center justify-center gap-2 text-sm text-amber-700 hover:text-amber-900 bg-white px-3 py-1.5 rounded-md border border-amber-300 shadow-sm transition-colors flex-1"
+                          title="現在の問題データをクリップボードにコピー"
+                        >
+                          <ClipboardCopy size={16} />
+                          データをコピー
+                        </button>
+
+                        <input
+                          type="file"
+                          accept="application/json"
+                          className="hidden"
+                          ref={jsonFileInputRef}
+                          onChange={handleJsonImport}
+                        />
+                        <button
+                          onClick={() => jsonFileInputRef.current?.click()}
+                          className="flex items-center justify-center gap-2 text-sm text-amber-700 hover:text-amber-900 bg-white px-3 py-1.5 rounded-md border border-amber-300 shadow-sm transition-colors flex-1"
+                          title="JSONファイルから問題データをインポート"
+                        >
+                          <Download size={16} />
+                          インポート
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (problems.length <= 1) {
+                              setAlertDialog('削除できる問題がありません。');
+                              return;
+                            }
+                            setConfirmDialog({
+                              message: '第1問以外のすべての問題を削除しますか？\n(この操作は取り消せません)',
+                              onConfirm: () => {
+                                const newProblems = [problems[0]];
+                                setProblems(newProblems);
+                                setCurrentProblemIndex(0);
+                                localStorage.setItem('tsumeShogiProblems', JSON.stringify(newProblems));
+                                setAlertDialog('第1問以外の問題をすべて削除しました。');
+                              }
+                            });
+                          }}
+                          className="flex items-center justify-center gap-2 text-sm text-red-700 hover:text-red-900 bg-red-50 px-3 py-1.5 rounded-md border border-red-200 shadow-sm transition-colors w-full mt-2"
+                          title="第1問以外のすべての問題を削除する"
+                        >
+                          <RotateCcw size={16} />
+                          初期化
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-4 w-full mt-2 pt-4 border-t border-amber-900/10">
+                      <button
+                        onClick={handleAddEmptyProblem}
+                        className="w-full flex items-center justify-center gap-2 bg-amber-100 text-amber-900 px-4 py-2 rounded-lg font-bold hover:bg-amber-200 transition-colors"
+                      >
+                        <Plus size={18} />
+                        空の盤面を追加
+                      </button>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="w-full flex items-center justify-center gap-2 bg-amber-100 text-amber-900 px-4 py-2 rounded-lg font-bold hover:bg-amber-200 transition-colors disabled:opacity-50"
+                      >
+                        {isUploading ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <Upload size={18} />
+                        )}
+                        {isUploading ? '解析中...' : '画像/PDFから追加'}
+                      </button>
+                    </div>
+                  </div>
+                  {uploadError && (
+                    <div className="mt-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-2">
+                      <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                      <span>{uploadError}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Promotion Dialog */}
       <AnimatePresence>
@@ -1923,10 +1955,6 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
           </motion.div>
         )}
       </AnimatePresence>
-
-      <footer className="mt-12 text-amber-800/40 text-xs">
-        © 2026 {appTitle} • 伝統的な将棋のパズル
-      </footer>
     </div>
   );
 }
