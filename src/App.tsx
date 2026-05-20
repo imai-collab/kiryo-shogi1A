@@ -1463,7 +1463,7 @@ SFEN形式の例: 7nl/1R3sk2/5pppp/9/9/9/9/9/9 b GS 1
       )}
 
       <div className="w-full bg-amber-200 py-2 px-4 flex justify-center items-center border-b-2 border-amber-900/20 shrink-0 shadow-sm">
-        <span className="text-amber-950 font-black text-base sm:text-lg tracking-wide">©kiryoアプリ　詰将棋</span>
+        <span className="text-amber-950 font-black text-base sm:text-lg tracking-wide">©kiryoアプリ　詰将棋マスター</span>
       </div>
       <header className="w-full flex-none px-2 sm:px-4 py-2 flex items-center justify-between shadow-sm z-10 bg-white/50 backdrop-blur-sm border-b border-amber-900/10">
         <button
